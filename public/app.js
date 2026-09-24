@@ -207,12 +207,19 @@ function render() {
   $('#title').textContent = state.config.title;
   document.title = state.config.title;
   $('#lede').textContent = state.config.lede;
-  $('#main').innerHTML = state.config.views.map((view) => view.type === 'dashboard' ? renderDashboardView(view) : renderCrudView(view)).join('');
+  $('#main').innerHTML = state.config.views.map((view) => {
+    if (view.type === 'dashboard') return renderDashboardView(view);
+    if (view.type === 'radon') return window.RadonPage.render(view, state);
+    return renderCrudView(view);
+  }).join('');
   setTab(state.activeTab || state.config.views[0].id);
 }
 
 async function load() {
   state.db = await api('/api/db');
+  if (state.config.views.some((view) => view.type === 'radon')) {
+    state.radon = await api('/api/radon/overview');
+  }
   render();
 }
 
@@ -248,6 +255,10 @@ document.addEventListener('submit', async (event) => {
 });
 
 $('#refreshBtn').addEventListener('click', () => load().then(() => toast('已刷新')));
+
+window.AppReload = load;
+window.AppToast = toast;
+window.AppTone = toneFor;
 
 async function boot() {
   state.config = await api('/api/config');

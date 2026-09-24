@@ -15,8 +15,16 @@
       "createdAt": "2026-06-14T08:00:00.000Z",
       "updatedAt": "2026-06-14T08:00:00.000Z",
       "history": [
-        { "at": "2026-06-14T08:00:00.000Z", "action": "创建", "note": "样点建档" }
-      ]
+        {
+          "at": "2026-06-14T08:00:00.000Z",
+          "action": "创建",
+          "note": "样点建档"
+        }
+      ],
+      "chamberVolume": 320,
+      "radonStatus": "常规观察",
+      "permitStatus": "许可正常",
+      "clearanceEpoch": null
     }
   ],
   "surveys": [
@@ -36,8 +44,71 @@
       "createdAt": "2026-06-18T10:00:00.000Z",
       "updatedAt": "2026-06-18T10:00:00.000Z",
       "history": [
-        { "at": "2026-06-18T10:00:00.000Z", "action": "创建", "note": "CO2升高并有干扰痕迹" }
+        {
+          "at": "2026-06-18T10:00:00.000Z",
+          "action": "创建",
+          "note": "CO2升高并有干扰痕迹"
+        }
       ]
     }
-  ]
+  ],
+  "instruments": [
+    {
+      "id": "inst-seed-1",
+      "code": "RAD-01",
+      "name": "连续测氡仪",
+      "model": "AlphaRad-7",
+      "note": "西线巡测常用",
+      "createdAt": "2026-06-14T08:00:00.000Z",
+      "updatedAt": "2026-06-14T08:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-14T08:00:00.000Z",
+          "action": "创建",
+          "note": "仪器建档"
+        }
+      ]
+    },
+    {
+      "id": "inst-seed-2",
+      "code": "RAD-02",
+      "name": "连续测氡仪",
+      "model": "RadonEye Plus",
+      "note": "",
+      "createdAt": "2026-06-14T08:00:00.000Z",
+      "updatedAt": "2026-06-14T08:00:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-14T08:00:00.000Z",
+          "action": "创建",
+          "note": "仪器建档"
+        }
+      ]
+    }
+  ],
+  "radonReadings": [
+    {
+      "id": "radon-seed-1",
+      "siteId": "site-seed-1",
+      "instrumentId": "inst-seed-1",
+      "periodStart": "2026-06-18T09:00",
+      "periodEnd": "2026-06-18T10:00",
+      "radon": 180,
+      "eec": 54,
+      "operator": "沈宁",
+      "status": "有效",
+      "returnedAt": "2026-06-18T10:30:00.000Z",
+      "createdAt": "2026-06-18T10:00:00.000Z",
+      "updatedAt": "2026-06-18T10:30:00.000Z",
+      "history": [
+        {
+          "at": "2026-06-18T10:00:00.000Z",
+          "action": "创建",
+          "note": "登记氡巡查"
+        }
+      ]
+    }
+  ],
+  "ventilations": [],
+  "retests": []
 }

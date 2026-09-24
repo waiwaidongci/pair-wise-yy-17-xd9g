@@ -1,31 +1,16 @@
 const express = require('express');
-const fs = require('fs/promises');
 const path = require('path');
 
 const app = express();
 const config = require('./project.config');
+const store = require('./radon/store');
+const radonRoutes = require('./radon/routes');
 const PORT = process.env.PORT || config.port || 3900;
-const DB_FILE = path.join(__dirname, 'data', 'db.json');
+const { readDb, writeDb, stamp } = store;
 
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
-
-async function readDb() {
-  const raw = await fs.readFile(DB_FILE, 'utf8');
-  return JSON.parse(raw);
-}
-
-async function writeDb(db) {
-  await fs.writeFile(DB_FILE, JSON.stringify(db, null, 2) + '\n');
-}
-
-function stamp(action, note) {
-  return {
-    at: new Date().toISOString(),
-    action,
-    note: note || ''
-  };
-}
+app.use('/api/radon', radonRoutes);
 
 function sortNewest(a, b) {
   return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);

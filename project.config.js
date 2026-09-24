@@ -6,18 +6,34 @@ module.exports = {
     '常规观察': 'ok',
     '正常': 'ok',
     '已复查': 'ok',
+    '有效': 'ok',
+    '许可正常': 'ok',
+    '在库': 'ok',
+    '合格': 'ok',
     '重点保护': 'warn',
+    '借出': 'warn',
+    '已修订': 'warn',
+    '已失效': 'warn',
     '异常待复查': 'bad',
+    '待通风': 'bad',
+    '许可暂停': 'bad',
+    '超限': 'bad',
     '暂停开放': 'bad'
   },
   collections: {
     sites: { label: '样点档案' },
-    surveys: { label: '巡测记录' }
+    surveys: { label: '巡测记录' },
+    instruments: { label: '仪器台账' },
+    radonReadings: { label: '氡巡查记录' },
+    ventilations: { label: '通风记录' },
+    retests: { label: '复测记录' }
   },
   stats: [
     { label: '样点', collection: 'sites' },
+    { label: '待通风', collection: 'sites', filter: { field: 'radonStatus', value: '待通风' } },
     { label: '重点保护', collection: 'sites', filter: { field: 'protectedStatus', value: '重点保护' } },
     { label: '巡测记录', collection: 'surveys' },
+    { label: '氡巡查', collection: 'radonReadings' },
     { label: '待复查', collection: 'surveys', filter: { field: 'status', value: '异常待复查' } }
   ],
   views: [
@@ -44,8 +60,12 @@ module.exports = {
       detailFields: [
         { label: '洞穴', name: 'cave' },
         { label: '巡测路线', name: 'route' },
-        { label: '敏感等级', name: 'sensitivity' }
+        { label: '敏感等级', name: 'sensitivity' },
+        { label: '洞室容积(m³)', name: 'chamberVolume' },
+        { label: '氡状态', name: 'radonStatus' },
+        { label: '讲解许可', name: 'permitStatus' }
       ],
+      defaults: { radonStatus: '常规观察', permitStatus: '许可正常' },
       fields: [
         { label: '洞穴', name: 'cave', required: true },
         { label: '分区', name: 'zone', required: true },
@@ -53,6 +73,7 @@ module.exports = {
         { label: '巡测路线', name: 'route', required: true },
         { label: '敏感等级', name: 'sensitivity', type: 'select', options: ['低', '中', '高'] },
         { label: '保护状态', name: 'protectedStatus', type: 'select', options: ['常规观察', '重点保护', '暂停开放'] },
+        { label: '洞室容积(m³)', name: 'chamberVolume', type: 'number', required: true },
         { label: '基准温度', name: 'baselineTemp', type: 'number', required: true },
         { label: '基准湿度', name: 'baselineHumidity', type: 'number', required: true },
         { label: '基准CO2', name: 'baselineCo2', type: 'number', required: true },
@@ -89,6 +110,32 @@ module.exports = {
         { label: '滴水频率', name: 'dripRate', type: 'number', required: true },
         { label: '照片链接', name: 'photoUrl' },
         { label: '游客干扰痕迹', name: 'disturbance', type: 'textarea', wide: true }
+      ]
+    },
+    {
+      id: 'radon',
+      label: '氡巡查与通风',
+      type: 'radon'
+    },
+    {
+      id: 'instruments',
+      label: '仪器台账',
+      collection: 'instruments',
+      formTitle: '新增仪器',
+      listTitle: '仪器列表',
+      submitLabel: '保存仪器',
+      searchPlaceholder: '搜索编号、名称、型号',
+      searchFields: ['code', 'name', 'model'],
+      titleFields: ['code', 'name'],
+      summaryFields: ['note'],
+      detailFields: [
+        { label: '型号', name: 'model' }
+      ],
+      fields: [
+        { label: '仪器编号', name: 'code', required: true },
+        { label: '名称', name: 'name', required: true },
+        { label: '型号', name: 'model' },
+        { label: '备注', name: 'note', type: 'textarea', wide: true }
       ]
     }
   ],
