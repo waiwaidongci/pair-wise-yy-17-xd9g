@@ -100,12 +100,12 @@ function historyHtml(item) {
   `).join('')}</div>`;
 }
 
-function values(form, view) {
+function values(form, view, includeDefaults = true) {
   const payload = Object.fromEntries(new FormData(form).entries());
   for (const field of view.fields) {
     if (field.type === 'number') payload[field.name] = Number(payload[field.name] || 0);
   }
-  return { ...view.defaults, ...payload };
+  return includeDefaults ? { ...view.defaults, ...payload } : payload;
 }
 
 function renderTabs() {
@@ -129,7 +129,7 @@ function renderStats() {
   }).join('')}</div>`;
 }
 
-function renderCard(item, collection, view) {
+function renderCard(item, collection, view, allowEdit = false) {
   const title = view.titleFields.map((field) => item[field]).filter(Boolean).join(' / ') || item.id;
   const statusValue = item[view.statusField];
   const relation = view.relation ? `<div class="meta">${escapeHtml(relationLabel(view.relation, item[view.relation.localKey]))}</div>` : '';
@@ -143,12 +143,15 @@ function renderCard(item, collection, view) {
     .filter((action) => action.collection === collection)
     .map((action) => `<button class="${action.danger ? 'danger' : 'ghost'}" data-action="${action.id}" data-id="${item.id}">${escapeHtml(action.label)}</button>`)
     .join('');
+  const edit = allowEdit && view.fields
+    ? `<button class="ghost" data-edit="${item.id}" data-collection="${collection}">修订</button>`
+    : '';
   return `<article class="card">
     <div class="card-head"><h3>${escapeHtml(title)}</h3>${statusValue ? pill(statusValue, toneFor(statusValue)) : ''}</div>
     ${relation}
     ${summary ? `<p>${escapeHtml(summary)}</p>` : ''}
     ${details ? `<div class="detail">${details}</div>` : ''}
-    ${actions ? `<div class="actions">${actions}</div>` : ''}
+    ${actions || edit ? `<div class="actions">${edit}${actions}</div>` : ''}
     ${historyHtml(item)}
   </article>`;
 }
@@ -164,7 +167,7 @@ function renderList(view) {
   if (status) {
     items = items.filter((item) => item[view.statusField] === status);
   }
-  return items.length ? items.map((item) => renderCard(item, collection, view)).join('') : `<div class="empty">暂无${escapeHtml(collectionLabel(collection))}</div>`;
+  return items.length ? items.map((item) => renderCard(item, collection, view, true)).join('') : `<div class="empty">暂无${escapeHtml(collectionLabel(collection))}</div>`;
 }
 
 function renderDashboardView(view) {
@@ -186,7 +189,10 @@ function renderCrudView(view) {
       <form class="panel" data-create="${view.collection}" data-view="${view.id}">
         <h2>${escapeHtml(view.formTitle)}</h2>
         <div class="form-grid">${view.fields.map(formField).join('')}</div>
-        <div class="actions"><button>${escapeHtml(view.submitLabel || '保存')}</button></div>
+        <div class="actions">
+          <button type="submit">${escapeHtml(view.submitLabel || '保存')}</button>
+          <button type="button" class="ghost" data-cancel-edit hidden>取消修订</button>
+        </div>
       </form>
       <div class="panel">
         <h2>${escapeHtml(view.listTitle)}</h2>
@@ -207,7 +213,11 @@ function render() {
   $('#title').textContent = state.config.title;
   document.title = state.config.title;
   $('#lede').textContent = state.config.lede;
-  $('#main').innerHTML = state.config.views.map((view) => view.type === 'dashboard' ? renderDashboardView(view) : renderCrudView(view)).join('');
+  $('#main').innerHTML = state.config.views.map((view) => {
+    if (view.type === 'dashboard') return renderDashboardView(view);
+    if (view.type === 'radon') return window.RadonPage.render(view);
+    return renderCrudView(view);
+  }).join('');
   setTab(state.activeTab || state.config.views[0].id);
 }
 
@@ -216,9 +226,37 @@ async function load() {
   render();
 }
 
+function clearEdit(form, view) {
+  delete form.dataset.editing;
+  form.querySelector('[type="submit"]').textContent = view.submitLabel || '保存';
+  form.querySelector('[data-cancel-edit]').hidden = true;
+  form.reset();
+}
+
+function startEdit(item, view) {
+  const form = $(`form[data-view="${view.id}"]`);
+  if (!form) return;
+  for (const field of view.fields) {
+    const input = form.elements[field.name];
+    if (!input) continue;
+    const current = item[field.name] ?? '';
+    if (input.tagName === 'SELECT' && current && ![...input.options].some((option) => option.value === current || option.text === current)) {
+      input.add(new Option(current, current));
+    }
+    input.value = current;
+  }
+  form.dataset.editing = item.id;
+  form.querySelector('[type="submit"]').textContent = '保存修订';
+  form.querySelector('[data-cancel-edit]').hidden = false;
+  setTab(view.id);
+  form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 document.addEventListener('click', async (event) => {
   const tab = event.target.closest('.tab');
   const action = event.target.closest('[data-action]');
+  const edit = event.target.closest('[data-edit]');
+  const cancel = event.target.closest('[data-cancel-edit]');
   if (tab) setTab(tab.dataset.tab);
   if (action) {
     try {
@@ -228,6 +266,16 @@ document.addEventListener('click', async (event) => {
     } catch (error) {
       toast(error.message);
     }
+  }
+  if (edit) {
+    const view = state.config.views.find((entry) => entry.collection === edit.dataset.collection);
+    const item = state.db[edit.dataset.collection]?.find((entry) => entry.id === edit.dataset.edit);
+    if (view && item) startEdit(item, view);
+  }
+  if (cancel) {
+    const form = cancel.closest('form');
+    const view = state.config.views.find((entry) => entry.id === form.dataset.view);
+    clearEdit(form, view);
   }
 });
 
@@ -241,13 +289,26 @@ document.addEventListener('submit', async (event) => {
   if (!form) return;
   event.preventDefault();
   const view = state.config.views.find((entry) => entry.id === form.dataset.view);
-  await api(`/api/${form.dataset.create}`, { method: 'POST', body: JSON.stringify(values(form, view)) });
-  form.reset();
-  await load();
-  toast('已保存');
+  const editing = form.dataset.editing;
+  try {
+    if (editing) {
+      await api(`/api/${form.dataset.create}/${editing}`, { method: 'PATCH', body: JSON.stringify(values(form, view, false)) });
+      clearEdit(form, view);
+      toast('修订已保存');
+    } else {
+      await api(`/api/${form.dataset.create}`, { method: 'POST', body: JSON.stringify(values(form, view)) });
+      form.reset();
+      toast('已保存');
+    }
+    await load();
+  } catch (error) {
+    toast(error.message);
+  }
 });
 
 $('#refreshBtn').addEventListener('click', () => load().then(() => toast('已刷新')));
+
+window.App = { state, api, toast, load, escapeHtml, fmtDate, pill, toneFor, historyHtml, relationLabel };
 
 async function boot() {
   state.config = await api('/api/config');

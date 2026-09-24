@@ -8,6 +8,8 @@
       "route": "西线巡测",
       "sensitivity": "高",
       "protectedStatus": "重点保护",
+      "tourPermit": "正常",
+      "chamberVolume": 520,
       "baselineTemp": 16.2,
       "baselineHumidity": 92,
       "baselineCo2": 680,
@@ -39,5 +41,54 @@
         { "at": "2026-06-18T10:00:00.000Z", "action": "创建", "note": "CO2升高并有干扰痕迹" }
       ]
     }
-  ]
+  ],
+  "instruments": [
+    {
+      "id": "inst-seed-1",
+      "code": "RAD-01",
+      "model": "AlphaGuard PQ2000",
+      "status": "在库",
+      "siteId": "",
+      "note": "连续测氡仪，巡检主机",
+      "createdAt": "2026-06-10T08:00:00.000Z",
+      "updatedAt": "2026-06-10T08:00:00.000Z",
+      "history": [
+        { "at": "2026-06-10T08:00:00.000Z", "action": "创建", "note": "仪器入库" }
+      ]
+    },
+    {
+      "id": "inst-seed-2",
+      "code": "RAD-02",
+      "model": "RAD7 测氡仪",
+      "status": "在库",
+      "siteId": "",
+      "note": "备用机",
+      "createdAt": "2026-06-10T08:05:00.000Z",
+      "updatedAt": "2026-06-10T08:05:00.000Z",
+      "history": [
+        { "at": "2026-06-10T08:05:00.000Z", "action": "创建", "note": "仪器入库" }
+      ]
+    }
+  ],
+  "radonReadings": [
+    {
+      "id": "radon-seed-1",
+      "siteId": "site-seed-1",
+      "instrumentId": "inst-seed-1",
+      "operator": "沈宁",
+      "periodStart": "2026-06-18T09:00",
+      "periodEnd": "2026-06-18T11:00",
+      "radon": 180,
+      "eec": 60,
+      "verdict": "合格",
+      "note": "例行巡查，低于限值",
+      "createdAt": "2026-06-18T11:05:00.000Z",
+      "updatedAt": "2026-06-18T11:05:00.000Z",
+      "history": [
+        { "at": "2026-06-18T11:05:00.000Z", "action": "创建", "note": "例行巡查，低于限值" }
+      ]
+    }
+  ],
+  "ventilations": [],
+  "clearances": []
 }

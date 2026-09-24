@@ -1,23 +1,16 @@
 const express = require('express');
-const fs = require('fs/promises');
 const path = require('path');
 
 const app = express();
 const config = require('./project.config');
+const store = require('./src/store');
+const radon = require('./src/radon');
 const PORT = process.env.PORT || config.port || 3900;
-const DB_FILE = path.join(__dirname, 'data', 'db.json');
 
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-async function readDb() {
-  const raw = await fs.readFile(DB_FILE, 'utf8');
-  return JSON.parse(raw);
-}
-
-async function writeDb(db) {
-  await fs.writeFile(DB_FILE, JSON.stringify(db, null, 2) + '\n');
-}
+const { readDb, writeDb } = store;
 
 function stamp(action, note) {
   return {
@@ -29,6 +22,11 @@ function stamp(action, note) {
 
 function sortNewest(a, b) {
   return new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0);
+}
+
+function respond(res, result, okStatus = 200) {
+  if (result.error) return res.status(result.status || 409).json({ error: result.error });
+  return res.status(okStatus).json(result);
 }
 
 app.get('/api/config', (req, res) => {
@@ -43,10 +41,50 @@ app.get('/api/db', async (req, res) => {
   res.json(db);
 });
 
+// ---- 氡巡查与通风放行（判定逻辑在 src/radon.js，存档在 src/store.js）----
+
+app.post('/api/radon/readings', async (req, res) => {
+  const db = await readDb();
+  const result = radon.registerReading(db, req.body || {});
+  if (result.error) return respond(res, result);
+  await writeDb(db);
+  res.status(201).json(result);
+});
+
+app.patch('/api/radon/readings/:id', async (req, res) => {
+  const db = await readDb();
+  const result = radon.reviseReading(db, req.params.id, req.body || {});
+  if (result.error) return respond(res, result);
+  await writeDb(db);
+  res.json(result);
+});
+
+app.post('/api/radon/clearances/:id/ventilations', async (req, res) => {
+  const db = await readDb();
+  const result = radon.addVentilation(db, req.params.id, req.body || {});
+  if (result.error) return respond(res, result);
+  await writeDb(db);
+  res.status(201).json(result);
+});
+
+app.post('/api/radon/clearances/:id/retests', async (req, res) => {
+  const db = await readDb();
+  const result = radon.addRetest(db, req.params.id, req.body || {});
+  if (result.error) return respond(res, result);
+  await writeDb(db);
+  res.status(201).json(result);
+});
+
+// ---- 通用集合接口 ----
+
 app.post('/api/:collection', async (req, res) => {
   const db = await readDb();
   const { collection } = req.params;
   if (!Array.isArray(db[collection])) return res.status(404).json({ error: 'unknown collection' });
+  // 氡读数、通风、放行必须走判定层接口，不能绕过规则直接建档
+  if (['radonReadings', 'ventilations', 'clearances'].includes(collection)) {
+    return res.status(409).json({ error: '请通过氡巡查与放行接口登记' });
+  }
   const now = new Date().toISOString();
   const item = {
     id: `${collection}-${Date.now()}-${Math.random().toString(16).slice(2, 7)}`,
@@ -66,12 +104,28 @@ app.patch('/api/:collection/:id', async (req, res) => {
   if (!Array.isArray(db[collection])) return res.status(404).json({ error: 'unknown collection' });
   const item = db[collection].find((entry) => entry.id === id);
   if (!item) return res.status(404).json({ error: 'not found' });
+  // 氡读数修订必须走判定层：未结束放行失效并按新值重判
+  if (collection === 'radonReadings') {
+    const result = radon.reviseReading(db, id, req.body || {});
+    if (result.error) return respond(res, result);
+    await writeDb(db);
+    return res.json(result);
+  }
+  const volumeChanged = collection === 'sites'
+    && req.body.chamberVolume !== undefined
+    && Number(req.body.chamberVolume) !== Number(item.chamberVolume);
   const historyAction = req.body.historyAction;
   delete req.body.historyAction;
   Object.assign(item, req.body, { updatedAt: new Date().toISOString() });
   item.history = item.history || [];
   if (historyAction || req.body.note || req.body.memo || req.body.status) {
     item.history.unshift(stamp(historyAction || req.body.status || '更新', req.body.note || req.body.memo || ''));
+  }
+  // 修订洞室容积：未结束放行失效并按新容积重判
+  if (volumeChanged) {
+    item.history.unshift(stamp('修订容积', `洞室容积改为 ${req.body.chamberVolume} m³`));
+    const judged = radon.rejudgeSite(db, id, '修订洞室容积，按新值重判');
+    if (judged.error) return respond(res, judged);
   }
   await writeDb(db);
   res.json(item);

@@ -309,6 +309,44 @@ main {
   border-radius: 8px;
 }
 
+.meter {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.meter span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.mini-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 8px;
+  align-items: end;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+
+.mini-form button {
+  white-space: nowrap;
+}
+
+.subhead {
+  margin: 18px 0 10px;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.radon-readings {
+  margin-top: 18px;
+}
+
 .toast {
   position: fixed;
   right: 20px;
@@ -352,7 +390,8 @@ main {
   .stats,
   .form-grid,
   .detail,
-  .toolbar {
+  .toolbar,
+  .mini-form {
     grid-template-columns: 1fr;
   }
 

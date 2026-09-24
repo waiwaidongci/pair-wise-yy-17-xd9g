@@ -1,24 +1,37 @@
 module.exports = {
   port: 3912,
   title: '钟乳石洞穴微环境巡测',
-  lede: '围绕洞穴、分区、样点和巡测路线记录微环境数据，发现异常后生成复查闭环。',
+  lede: '围绕洞穴、分区、样点和巡测路线记录微环境数据，氡超限后联动通风放行，发现异常后生成复查闭环。',
   tones: {
     '常规观察': 'ok',
     '正常': 'ok',
     '已复查': 'ok',
+    '合格': 'ok',
+    '在库': 'ok',
+    '已放行': 'ok',
     '重点保护': 'warn',
+    '借出': 'warn',
+    '待复测': 'warn',
     '异常待复查': 'bad',
-    '暂停开放': 'bad'
+    '暂停开放': 'bad',
+    '待通风': 'bad',
+    '超限': 'bad',
+    '暂停': 'bad',
+    '已失效': ''
   },
   collections: {
     sites: { label: '样点档案' },
-    surveys: { label: '巡测记录' }
+    surveys: { label: '巡测记录' },
+    instruments: { label: '仪器台账' },
+    radonReadings: { label: '氡巡查记录' },
+    ventilations: { label: '通风记录' },
+    clearances: { label: '放行记录' }
   },
   stats: [
     { label: '样点', collection: 'sites' },
-    { label: '重点保护', collection: 'sites', filter: { field: 'protectedStatus', value: '重点保护' } },
+    { label: '待通风', collection: 'sites', filter: { field: 'protectedStatus', value: '待通风' } },
     { label: '巡测记录', collection: 'surveys' },
-    { label: '待复查', collection: 'surveys', filter: { field: 'status', value: '异常待复查' } }
+    { label: '氡巡查', collection: 'radonReadings' }
   ],
   views: [
     {
@@ -38,14 +51,17 @@ module.exports = {
       searchPlaceholder: '搜索洞穴、分区、样点、路线',
       searchFields: ['cave', 'zone', 'pointCode', 'route'],
       statusField: 'protectedStatus',
-      statusOptions: ['常规观察', '重点保护', '暂停开放'],
+      statusOptions: ['常规观察', '重点保护', '待通风', '暂停开放'],
       titleFields: ['pointCode', 'zone'],
       summaryFields: ['note'],
       detailFields: [
         { label: '洞穴', name: 'cave' },
         { label: '巡测路线', name: 'route' },
-        { label: '敏感等级', name: 'sensitivity' }
+        { label: '敏感等级', name: 'sensitivity' },
+        { label: '洞室容积(m³)', name: 'chamberVolume' },
+        { label: '讲解许可', name: 'tourPermit' }
       ],
+      defaults: { tourPermit: '正常' },
       fields: [
         { label: '洞穴', name: 'cave', required: true },
         { label: '分区', name: 'zone', required: true },
@@ -53,6 +69,7 @@ module.exports = {
         { label: '巡测路线', name: 'route', required: true },
         { label: '敏感等级', name: 'sensitivity', type: 'select', options: ['低', '中', '高'] },
         { label: '保护状态', name: 'protectedStatus', type: 'select', options: ['常规观察', '重点保护', '暂停开放'] },
+        { label: '洞室容积(m³)', name: 'chamberVolume', type: 'number', required: true },
         { label: '基准温度', name: 'baselineTemp', type: 'number', required: true },
         { label: '基准湿度', name: 'baselineHumidity', type: 'number', required: true },
         { label: '基准CO2', name: 'baselineCo2', type: 'number', required: true },
@@ -90,12 +107,45 @@ module.exports = {
         { label: '照片链接', name: 'photoUrl' },
         { label: '游客干扰痕迹', name: 'disturbance', type: 'textarea', wide: true }
       ]
+    },
+    {
+      id: 'instruments',
+      label: '仪器台账',
+      collection: 'instruments',
+      formTitle: '新增仪器',
+      listTitle: '仪器列表',
+      submitLabel: '保存仪器',
+      searchPlaceholder: '搜索仪器编号、型号',
+      searchFields: ['code', 'model'],
+      statusField: 'status',
+      statusOptions: ['在库', '借出'],
+      titleFields: ['code', 'model'],
+      relation: { collection: 'sites', localKey: 'siteId', labelFields: ['cave', 'zone', 'pointCode'] },
+      summaryFields: ['note'],
+      defaults: { status: '在库', siteId: '' },
+      fields: [
+        { label: '仪器编号', name: 'code', required: true },
+        { label: '型号', name: 'model', required: true },
+        { label: '备注', name: 'note', type: 'textarea', wide: true }
+      ]
+    },
+    {
+      id: 'radon',
+      label: '氡巡查与放行',
+      type: 'radon'
     }
   ],
   actions: [
     { id: 'site-normal', label: '常规观察', collection: 'sites', patches: [{ field: 'protectedStatus', value: '常规观察' }] },
     { id: 'site-focus', label: '重点保护', collection: 'sites', patches: [{ field: 'protectedStatus', value: '重点保护' }] },
     { id: 'site-close', label: '暂停开放', collection: 'sites', danger: true, patches: [{ field: 'protectedStatus', value: '暂停开放' }] },
+    {
+      id: 'instrument-return',
+      label: '归还仪器',
+      collection: 'instruments',
+      guards: [{ left: 'item.status', op: 'eq', right: '借出', message: '仪器在库，无需归还' }],
+      patches: [{ field: 'status', value: '在库' }, { field: 'siteId', value: '' }]
+    },
     {
       id: 'survey-alert',
       label: '标记异常',
